@@ -27,6 +27,34 @@ function convertBoard(board) {
     return res;
 }
 
+function checkVertical(board, playerNum, j) {
+    let inARow = 0;
+    for (let i = 0; i < board.length; i++) {
+        if (board[i][j] === playerNum) {
+            inARow++;
+        } else {
+            inARow = 0;
+        }
+    }
+    return inARow >= 4;
+}
+
+function checkHorizontal(board, playerNum, i) {
+    let inARow = 0;
+    for (let j = 0; j < board[0].length; j++) {
+        if (board[i][j] === playerNum) {
+            inARow++;
+        } else {
+            inARow = 0;
+        }
+    }
+    return inARow >= 4;
+}
+
+function checkWin(board, playerNum, i, j) {
+    return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j);
+}
+
 function makeButtonRow(length, playerNum, startIndex=0) {
     return new MessageActionRow()
         .addComponents(
@@ -39,10 +67,20 @@ function makeButtonRow(length, playerNum, startIndex=0) {
                         .setStyle('PRIMARY')
                         .setEmoji(emoji[playerNum].unicode));
                 }
-                console.log(buttons)
                 return buttons;
             })()
         );
+}
+
+function makeButtonRows(length, playerNum) {
+    const buttonRows = [];
+    for (let i = 0; i < length; i += maxButtonsPerRow) {
+        buttonRows.push(makeButtonRow((() => {
+                if (i + maxButtonsPerRow > length) return length - i;
+                else return maxButtonsPerRow;})(),
+            playerNum, i));
+    }
+    return buttonRows;
 }
 
 module.exports = {
@@ -73,23 +111,58 @@ module.exports = {
             [0, 0, 0, 0, 0, 0, 0]
         ];
 
-        let currentPlayer = 1;
+        // Randomly select which player to start
+        let currentPlayer = Math.floor(Math.random() * 2) + 1;
 
-        const baseContent = `${emoji[1]["name"]} ${players[1].username} vs ${players[2].username} ${emoji[2]["name"]}\n` +
-            convertBoard(board) + '\n';
-
-        const buttonRows = [];
-        for (let i = 0; i < board[0].length; i += maxButtonsPerRow) {
-            buttonRows.push(makeButtonRow((() => {
-                if (i + maxButtonsPerRow > board[0].length) return board[0].length - i;
-                else return maxButtonsPerRow;})(),
-                currentPlayer, i));
-        }
+        const baseContent = `${emoji[1]["name"]} ${players[1]} vs ${players[2]} ${emoji[2]["name"]}\n\n`;
 
         await interaction.reply(
             {
-                content: baseContent,
-                components: buttonRows
+                content: baseContent + convertBoard(board),
+                components: makeButtonRows(board[0].length, currentPlayer)
             });
+
+        const filter = i => {
+            return i.user.id === players[1].id || i.user.id === players[2].id;
+        }
+        const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 6000});
+
+        buttonCollector.on('collect', async i => {
+            await i.deferUpdate();
+            let win = false;
+            if (i.user.id === players[currentPlayer].id) {
+                console.log(`interaction appID: ${interaction.applicationId}\nbuton interaction appID: ${i.applicationId}`)
+                for (let j = board.length - 1; j >= 0; j--) {
+                    if (board[j][i.customId] === 0) {
+                        board[j][i.customId] = currentPlayer;
+                        win = checkWin(board, currentPlayer, j, i.customId);
+                        break;
+                    }
+                }
+
+                if (win) {
+                    buttonCollector.stop(`${players[currentPlayer]} wins!`);
+                } else {
+                    currentPlayer = switchPlayer(currentPlayer);
+                }
+
+                await i.editReply({
+                    content: baseContent + convertBoard(board),
+                    components: makeButtonRows(board[0].length, currentPlayer)
+                })
+            }
+            buttonCollector.empty();
+        });
+
+        buttonCollector.on('end', async (collected, reason) => {
+            if (reason === 'idle') {
+                reason = `Game over. ${players[switchPlayer(currentPlayer)]} wins because ${players[currentPlayer]} took too long!`;
+            }
+
+            await interaction.editReply({
+                content: baseContent + convertBoard(board) + `\n${reason}`,
+                components: []
+            });
+        });
     }
 }
