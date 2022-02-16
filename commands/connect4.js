@@ -57,8 +57,30 @@ function checkHorizontal(board, playerNum, i) {
     return false;
 }
 
+function checkDiagDown(board, playerNum, i, j) {
+    while (i >= 1 && j >= 1) {
+        i--;
+        j--;
+    }
+    let inARow = 0;
+    console.log(`i: ${i}, j: ${j}`);
+    while (i < board.length && j < board[0].length) {
+        if (board[i][j] === playerNum) {
+            playerNum++;
+            if (inARow >= 4) {
+                return true;
+            }
+        } else {
+            inARow = 0;
+        }
+        i++;
+        j++;
+    }
+    return false;
+}
+
 function checkWin(board, playerNum, i, j) {
-    return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j);
+    return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j) || checkDiagDown(board, playerNum, i, j);
 }
 
 function makeButtonRow(length, playerNum, startIndex=0) {
@@ -138,7 +160,7 @@ module.exports = {
             }
             return false;
         }
-        const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 6000});
+        const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 60000});
 
         buttonCollector.on('collect', async i => {
             await i.deferUpdate();
