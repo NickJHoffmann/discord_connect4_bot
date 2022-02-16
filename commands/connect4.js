@@ -35,8 +35,11 @@ function checkVertical(board, playerNum, j) {
         } else {
             inARow = 0;
         }
+        if (inARow >= 4) {
+            return true;
+        }
     }
-    return inARow >= 4;
+    return false;
 }
 
 function checkHorizontal(board, playerNum, i) {
@@ -47,8 +50,11 @@ function checkHorizontal(board, playerNum, i) {
         } else {
             inARow = 0;
         }
+        if (inARow >= 4) {
+            return true;
+        }
     }
-    return inARow >= 4;
+    return false;
 }
 
 function checkWin(board, playerNum, i, j) {
