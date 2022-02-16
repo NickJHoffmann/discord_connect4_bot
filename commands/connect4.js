@@ -1,15 +1,18 @@
 const { SlashCommandBuilder, SlashCommandUserOption} = require('@discordjs/builders');
 const {MessageActionRow, MessageButton} = require("discord.js");
-const wait = require('util').promisify(setTimeout);
 
+const maxButtonsPerRow = 5;
 const emoji = {
-    0: ':white_large_square:',
-    1: ':red_square:',
-    2: ':yellow_square:'
+    0: {name: ":white_large_square:",
+        unicode: "⬜"},
+    1: {name: ":red_square:",
+        unicode: "🟥"},
+    2: {name: ":yellow_square:",
+        unicode: "🟨"}
 }
 
 function switchPlayer(num) {
-    if (num == 1) return 2;
+    if (num === 1) return 2;
     return 1;
 }
 
@@ -17,7 +20,7 @@ function convertBoard(board) {
     let res = '';
     for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[i].length; j++) {
-            res += emoji[board[i][j]] + ' ';
+            res += emoji[board[i][j]].name + ' ';
         }
         res += '\n';
     }
@@ -33,8 +36,10 @@ function makeButtonRow(length, playerNum, startIndex=0) {
                     buttons.push(new MessageButton()
                         .setCustomId(i.toString())
                         .setLabel((i+1).toString())
-                        .setStyle('PRIMARY'));
+                        .setStyle('PRIMARY')
+                        .setEmoji(emoji[playerNum].unicode));
                 }
+                console.log(buttons)
                 return buttons;
             })()
         );
@@ -66,19 +71,25 @@ module.exports = {
             [0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0]
-        ]
+        ];
 
         let currentPlayer = 1;
 
-        const baseContent = 'Connect 4:\n' +
-            `${emoji[1]} ${players[1].username} vs ${players[2].username} ${emoji[2]}\n` +
+        const baseContent = `${emoji[1]["name"]} ${players[1].username} vs ${players[2].username} ${emoji[2]["name"]}\n` +
             convertBoard(board) + '\n';
+
+        const buttonRows = [];
+        for (let i = 0; i < board[0].length; i += maxButtonsPerRow) {
+            buttonRows.push(makeButtonRow((() => {
+                if (i + maxButtonsPerRow > board[0].length) return board[0].length - i;
+                else return maxButtonsPerRow;})(),
+                currentPlayer, i));
+        }
 
         await interaction.reply(
             {
                 content: baseContent,
-                components: [makeButtonRow(5, 1), makeButtonRow(2, 2, 5)]
+                components: buttonRows
             });
-
     }
 }
