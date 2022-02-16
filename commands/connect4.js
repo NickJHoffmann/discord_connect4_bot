@@ -121,9 +121,16 @@ module.exports = {
                 content: baseContent + convertBoard(board),
                 components: makeButtonRows(board[0].length, currentPlayer)
             });
+        const initialReply = await interaction.fetchReply();
 
-        const filter = i => {
-            return i.user.id === players[1].id || i.user.id === players[2].id;
+        // Check if user clicking button is actually in the game and clicked on this instance's buttons
+        const filter = async i => {
+            if (i.user.id === players[1].id || i.user.id === players[2].id) {
+                if (i.message.id === initialReply.id) {
+                    return true;
+                }
+            }
+            return false;
         }
         const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 6000});
 
@@ -131,7 +138,6 @@ module.exports = {
             await i.deferUpdate();
             let win = false;
             if (i.user.id === players[currentPlayer].id) {
-                console.log(`interaction appID: ${interaction.applicationId}\nbuton interaction appID: ${i.applicationId}`)
                 for (let j = board.length - 1; j >= 0; j--) {
                     if (board[j][i.customId] === 0) {
                         board[j][i.customId] = currentPlayer;
