@@ -63,10 +63,9 @@ function checkDiagDown(board, playerNum, i, j) {
         j--;
     }
     let inARow = 0;
-    console.log(`i: ${i}, j: ${j}`);
     while (i < board.length && j < board[0].length) {
         if (board[i][j] === playerNum) {
-            playerNum++;
+            inARow++;
             if (inARow >= 4) {
                 return true;
             }
@@ -79,8 +78,29 @@ function checkDiagDown(board, playerNum, i, j) {
     return false;
 }
 
+function checkDiagUp(board, playerNum, i, j) {
+    while (i < board.length - 1 && j >= 1) {
+        i++;
+        j--;
+    }
+    let inARow = 0;
+    while (i >= 0 && j < board[0].length) {
+        if (board[i][j] === playerNum) {
+            inARow++;
+            if (inARow >= 4) {
+                return true;
+            }
+        } else {
+            inARow = 0;
+        }
+        i--;
+        j++;
+    }
+    return false;
+}
+
 function checkWin(board, playerNum, i, j) {
-    return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j) || checkDiagDown(board, playerNum, i, j);
+    return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j) || checkDiagDown(board, playerNum, i, j) || checkDiagUp(board, playerNum, i, j);
 }
 
 function makeButtonRow(length, playerNum, startIndex=0) {
@@ -149,6 +169,8 @@ module.exports = {
                 content: baseContent + convertBoard(board),
                 components: makeButtonRows(board[0].length, currentPlayer)
             });
+        // Don't know why I had to deliberately fetch the reply rather than just saving the return value of the initial
+        // reply call above, but I was getting errors that way
         const initialReply = await interaction.fetchReply();
 
         // Check if user clicking button is actually in the game and clicked on this instance's buttons
@@ -163,7 +185,6 @@ module.exports = {
         const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 60000});
 
         buttonCollector.on('collect', async i => {
-            await i.deferUpdate();
             let win = false;
             if (i.user.id === players[currentPlayer].id) {
                 for (let j = board.length - 1; j >= 0; j--) {
