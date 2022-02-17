@@ -161,7 +161,7 @@ module.exports = {
         }
 
         const matchTimeoutSeconds = 600;
-        const turnTimeoutSeconds = 10;
+        const turnTimeoutSeconds = 60;
         let turnTimeRemaining = turnTimeoutSeconds - 1;
 
         const board = [
