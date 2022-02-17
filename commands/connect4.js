@@ -200,16 +200,14 @@ module.exports = {
                 }
 
                 if (win) {
-                    buttonCollector.empty();
                     buttonCollector.stop(`${players[currentPlayer]} wins!`);
                 } else {
                     currentPlayer = switchPlayer(currentPlayer);
+                    await i.editReply({
+                        content: baseContent + convertBoard(board),
+                        components: makeButtonRows(board[0].length, currentPlayer)
+                    })
                 }
-
-                await i.editReply({
-                    content: baseContent + convertBoard(board),
-                    components: makeButtonRows(board[0].length, currentPlayer)
-                })
             }
             buttonCollector.empty();
         });
