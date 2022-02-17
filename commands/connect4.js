@@ -131,6 +131,11 @@ function makeButtonRows(length, playerNum) {
     return buttonRows;
 }
 
+function convertSecondsToTimeString(seconds) {
+    return `${Math.floor(seconds / 60)}:` + `${seconds % 60}`.padStart(2, '0');
+}
+
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("connect4")
@@ -141,17 +146,23 @@ module.exports = {
 
     async execute(interaction) {
         const players = {
-            1: interaction.user,
-            2: interaction.options.getUser('user')
+            1: {userObj: interaction.user,
+                madeMove: false},
+            2: {userObj: interaction.options.getUser('user'),
+                madeMove: false}
         }
 
-        if (!players[2]) {
+        if (!players[2].userObj) {
             await interaction.reply('User not found.');
             return;
-        } else if (players[2].bot) {
+        } else if (players[2].userObj.bot) {
             await interaction.reply('You must play against a human');
             return;
         }
+
+        const matchTimeoutSeconds = 600;
+        const turnTimeoutSeconds = 60;
+        let turnTimeRemaining = turnTimeoutSeconds - 1;
 
         const board = [
             [0, 0, 0, 0, 0, 0, 0],
@@ -165,56 +176,89 @@ module.exports = {
         // Randomly select which player to start
         let currentPlayer = Math.floor(Math.random() * 2) + 1;
 
-        const baseContent = `${emoji[1]["name"]} ${players[1]} vs ${players[2]} ${emoji[2]["name"]}\n\n`;
+        const baseContent = `${emoji[1]["name"]} ${players[1].userObj} vs ${players[2].userObj} ${emoji[2]["name"]}\n\n`;
+
+        let buttonRows = makeButtonRows(board[0].length, currentPlayer)
 
         await interaction.reply(
             {
-                content: baseContent + convertBoard(board),
-                components: makeButtonRows(board[0].length, currentPlayer)
+                content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                components: buttonRows
             });
+
         // Don't know why I had to deliberately fetch the reply rather than just saving the return value of the initial
         // reply call above, but I was getting errors that way
         const initialReply = await interaction.fetchReply();
 
         // Check if user clicking button is actually in the game and clicked on this instance's buttons
         const filter = async i => {
-            if (i.user.id === players[1].id || i.user.id === players[2].id) {
+            if (i.user.id === players[1].userObj.id || i.user.id === players[2].userObj.id) {
                 if (i.message.id === initialReply.id) {
                     return true;
                 }
             }
             return false;
         }
-        const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 60000});
+        const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: matchTimeoutSeconds * 1000, idle: turnTimeoutSeconds * 1000});
+
+        let intervalID = setInterval(async function() {
+                turnTimeRemaining--;
+                await interaction.editReply({
+                    content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                    components: buttonRows
+                });
+            }, 1000);
 
         buttonCollector.on('collect', async i => {
             await i.deferUpdate();
             let win = false;
-            if (i.user.id === players[currentPlayer].id) {
+            if (i.user.id === players[currentPlayer].userObj.id) {
+                clearInterval(intervalID);
                 for (let j = board.length - 1; j >= 0; j--) {
                     if (board[j][i.customId] === 0) {
                         board[j][i.customId] = currentPlayer;
                         win = checkWin(board, currentPlayer, j, i.customId);
+                        players[currentPlayer].madeMove = true;
                         break;
                     }
                 }
 
                 if (win) {
-                    buttonCollector.stop(`${players[currentPlayer]} wins!`);
+                    buttonCollector.stop(`${players[currentPlayer].userObj} wins!`);
                 } else {
                     currentPlayer = switchPlayer(currentPlayer);
+                    turnTimeRemaining = turnTimeoutSeconds - 1;
+                    buttonRows = makeButtonRows(board[0].length, currentPlayer);
+
+                    // Immediately respond with updated game board, then start to update timer every second
                     await i.editReply({
-                        content: baseContent + convertBoard(board),
-                        components: makeButtonRows(board[0].length, currentPlayer)
-                    })
+                        content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                        components: buttonRows
+                    });
+                    intervalID = setInterval(async function() {
+                        turnTimeRemaining--;
+                        await i.editReply({
+                            content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                            components: buttonRows
+                        });
+                    }, 1000);
                 }
             }
             buttonCollector.empty();
         });
 
         buttonCollector.on('end', async (collected, reason) => {
+            clearInterval(intervalID);
             if (reason === 'idle') {
-                reason = `Game over. ${players[switchPlayer(currentPlayer)]} wins because ${players[currentPlayer]} took too long!`;
+                if (players[1].madeMove && players[2].madeMove) {
+                    reason = `Game over. ${players[switchPlayer(currentPlayer)].userObj} wins because ${players[currentPlayer].userObj} took too long!`;
+                } else if (!players[2].madeMove && currentPlayer === 2) {
+                    reason = `Game over. ${players[2].userObj} isn't around right now.`;
+                } else if (!players[1].madeMove) {
+                    reason = `Game over. ${players[1].userObj} doesn't want to play the game they started :(`;
+                } else {
+                    reason = 'Game over.';
+                }
             }
 
             await interaction.editReply({
