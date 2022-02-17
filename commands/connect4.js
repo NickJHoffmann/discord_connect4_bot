@@ -200,6 +200,7 @@ module.exports = {
                 }
 
                 if (win) {
+                    buttonCollector.empty();
                     buttonCollector.stop(`${players[currentPlayer]} wins!`);
                 } else {
                     currentPlayer = switchPlayer(currentPlayer);
