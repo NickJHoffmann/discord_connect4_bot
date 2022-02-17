@@ -148,6 +148,9 @@ module.exports = {
         if (!players[2]) {
             await interaction.reply('User not found.');
             return;
+        } else if (players[2].bot) {
+            await interaction.reply('You must play against a human');
+            return;
         }
 
         const board = [
@@ -185,6 +188,7 @@ module.exports = {
         const buttonCollector = interaction.channel.createMessageComponentCollector({filter, time: 600000, idle: 60000});
 
         buttonCollector.on('collect', async i => {
+            await i.deferUpdate();
             let win = false;
             if (i.user.id === players[currentPlayer].id) {
                 for (let j = board.length - 1; j >= 0; j--) {
