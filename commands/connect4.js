@@ -239,7 +239,7 @@ module.exports = {
         // Randomly select which player to start
         let currentPlayer = Math.floor(Math.random() * 2) + 1;
 
-        const baseContent = `${gameEmoji[1]} ${players[1].userObj} vs ${players[2].userObj} ${gameEmoji[2]}\n\n`;
+        const baseContent = `${gameEmoji[1]} ${players[1].userObj} vs ${players[2].userObj} ${gameEmoji[2]}\n\nConnect ${numToConnect} to win!\n\n`;
 
         let buttonRows = makeButtonRows(board[0].length, currentPlayer, gameEmoji)
 
