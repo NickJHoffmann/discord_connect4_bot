@@ -19,7 +19,7 @@ function convertBoard(board, emoji) {
     return res;
 }
 
-function checkVertical(board, playerNum, j) {
+function checkVertical(board, playerNum, j, numToConnect) {
     let inARow = 0;
     for (let i = 0; i < board.length; i++) {
         if (board[i][j] === playerNum) {
@@ -27,14 +27,14 @@ function checkVertical(board, playerNum, j) {
         } else {
             inARow = 0;
         }
-        if (inARow >= 4) {
+        if (inARow >= numToConnect) {
             return true;
         }
     }
     return false;
 }
 
-function checkHorizontal(board, playerNum, i) {
+function checkHorizontal(board, playerNum, i, numToConnect) {
     let inARow = 0;
     for (let j = 0; j < board[0].length; j++) {
         if (board[i][j] === playerNum) {
@@ -42,14 +42,14 @@ function checkHorizontal(board, playerNum, i) {
         } else {
             inARow = 0;
         }
-        if (inARow >= 4) {
+        if (inARow >= numToConnect) {
             return true;
         }
     }
     return false;
 }
 
-function checkDiagDown(board, playerNum, i, j) {
+function checkDiagDown(board, playerNum, i, j, numToConnect) {
     while (i >= 1 && j >= 1) {
         i--;
         j--;
@@ -58,7 +58,7 @@ function checkDiagDown(board, playerNum, i, j) {
     while (i < board.length && j < board[0].length) {
         if (board[i][j] === playerNum) {
             inARow++;
-            if (inARow >= 4) {
+            if (inARow >= numToConnect) {
                 return true;
             }
         } else {
@@ -70,7 +70,7 @@ function checkDiagDown(board, playerNum, i, j) {
     return false;
 }
 
-function checkDiagUp(board, playerNum, i, j) {
+function checkDiagUp(board, playerNum, i, j, numToConnect) {
     while (i < board.length - 1 && j >= 1) {
         i++;
         j--;
@@ -79,7 +79,7 @@ function checkDiagUp(board, playerNum, i, j) {
     while (i >= 0 && j < board[0].length) {
         if (board[i][j] === playerNum) {
             inARow++;
-            if (inARow >= 4) {
+            if (inARow >= numToConnect) {
                 return true;
             }
         } else {
@@ -91,8 +91,8 @@ function checkDiagUp(board, playerNum, i, j) {
     return false;
 }
 
-function checkWin(board, playerNum, i, j) {
-    return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j) || checkDiagDown(board, playerNum, i, j) || checkDiagUp(board, playerNum, i, j);
+function checkWin(board, playerNum, i, j, numToConnect) {
+    return checkHorizontal(board, playerNum, i, numToConnect) || checkVertical(board, playerNum, j, numToConnect) || checkDiagDown(board, playerNum, i, j, numToConnect) || checkDiagUp(board, playerNum, i, j, numToConnect);
 }
 
 function makeButtonRow(emoji, length, playerNum, startIndex=0) {
@@ -157,9 +157,9 @@ module.exports = {
                 .setMaxValue(13))
         .addIntegerOption(option =>
             option.setName('connect')
-                .setDescription('Number of tiles in a row required to win. Minimum: 3, Maximum: 25. Defaults to 4')
+                .setDescription('Number of tiles in a row required to win. Minimum: 3, Maximum: 13. Defaults to 4')
                 .setMinValue(3)
-                .setMaxValue(25)),
+                .setMaxValue(13)),
 
     async execute(interaction) {
         const players = {
@@ -218,6 +218,14 @@ module.exports = {
             }
         })();
 
+        const numToConnect = (() => {
+            if (interaction.options.getInteger('connect')) {
+                return interaction.options.getInteger('connect')
+            } else {
+                return 4;
+            }
+        })();
+
 
         const matchTimeoutSeconds = 600;
         const turnTimeoutSeconds = 60;
@@ -272,7 +280,7 @@ module.exports = {
                 for (let j = board.length - 1; j >= 0; j--) {
                     if (board[j][i.customId] === 0) {
                         board[j][i.customId] = currentPlayer;
-                        win = checkWin(board, currentPlayer, j, i.customId);
+                        win = checkWin(board, currentPlayer, j, i.customId, numToConnect);
                         players[currentPlayer].madeMove = true;
                         break;
                     }
