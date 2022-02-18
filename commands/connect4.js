@@ -2,25 +2,17 @@ const { SlashCommandBuilder, SlashCommandUserOption} = require('@discordjs/build
 const {MessageActionRow, MessageButton} = require("discord.js");
 
 const maxButtonsPerRow = 5;
-const emoji = {
-    0: {name: ":white_large_square:",
-        unicode: "⬜"},
-    1: {name: ":red_square:",
-        unicode: "🟥"},
-    2: {name: ":yellow_square:",
-        unicode: "🟨"}
-}
 
 function switchPlayer(num) {
     if (num === 1) return 2;
     return 1;
 }
 
-function convertBoard(board) {
+function convertBoard(board, emoji) {
     let res = '';
     for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[i].length; j++) {
-            res += emoji[board[i][j]].name + ' ';
+            res += emoji[board[i][j]] + ' ';
         }
         res += '\n';
     }
@@ -103,7 +95,7 @@ function checkWin(board, playerNum, i, j) {
     return checkHorizontal(board, playerNum, i) || checkVertical(board, playerNum, j) || checkDiagDown(board, playerNum, i, j) || checkDiagUp(board, playerNum, i, j);
 }
 
-function makeButtonRow(length, playerNum, startIndex=0) {
+function makeButtonRow(emoji, length, playerNum, startIndex=0) {
     return new MessageActionRow()
         .addComponents(
             ...(() => {
@@ -113,17 +105,17 @@ function makeButtonRow(length, playerNum, startIndex=0) {
                         .setCustomId(i.toString())
                         .setLabel((i+1).toString())
                         .setStyle('PRIMARY')
-                        .setEmoji(emoji[playerNum].unicode));
+                        .setEmoji(emoji[playerNum]));
                 }
                 return buttons;
             })()
         );
 }
 
-function makeButtonRows(length, playerNum) {
+function makeButtonRows(length, playerNum, emoji) {
     const buttonRows = [];
     for (let i = 0; i < length; i += maxButtonsPerRow) {
-        buttonRows.push(makeButtonRow((() => {
+        buttonRows.push(makeButtonRow(emoji, (() => {
                 if (i + maxButtonsPerRow > length) return length - i;
                 else return maxButtonsPerRow;})(),
             playerNum, i));
@@ -142,7 +134,17 @@ module.exports = {
         .setDescription("Start playing Connect 4 with someone!")
         .addUserOption(new SlashCommandUserOption()
             .setName('user')
-            .setDescription('User to play against')),
+            .setDescription('User to play against')
+            .setRequired(true))
+        .addStringOption(option =>
+                option.setName('emoji1')
+                    .setDescription('Emoji for Player 1. Defaults to 🟥'))
+        .addStringOption(option =>
+            option.setName('emoji2')
+                .setDescription('Emoji for Player 2. Defaults to 🟨'))
+        .addStringOption(option =>
+            option.setName('background')
+                .setDescription('Emoji for unused tiles. Defaults to ⬜')),
 
     async execute(interaction) {
         const players = {
@@ -158,6 +160,30 @@ module.exports = {
         } else if (players[2].userObj.bot) {
             await interaction.reply('You must play against a human');
             return;
+        }
+
+        /*
+         * Default emoji
+         * 0: Background, white square
+         * 1: Player 1, red square
+         * 2: Player 2, yellow square
+         */
+        const gameEmoji = {
+            0: '⬜',
+            1: '🟥',
+            2: '🟨'
+        }
+
+        if (interaction.options.getString('background')) {
+            gameEmoji[0] = interaction.options.getString('background');
+        }
+
+        if (interaction.options.getString('emoji1')) {
+            gameEmoji[1] = interaction.options.getString('emoji1');
+        }
+
+        if (interaction.options.getString('emoji2')) {
+            gameEmoji[2] = interaction.options.getString('emoji2');
         }
 
         const matchTimeoutSeconds = 600;
@@ -176,13 +202,13 @@ module.exports = {
         // Randomly select which player to start
         let currentPlayer = Math.floor(Math.random() * 2) + 1;
 
-        const baseContent = `${emoji[1]["name"]} ${players[1].userObj} vs ${players[2].userObj} ${emoji[2]["name"]}\n\n`;
+        const baseContent = `${gameEmoji[1]} ${players[1].userObj} vs ${players[2].userObj} ${gameEmoji[2]}\n\n`;
 
-        let buttonRows = makeButtonRows(board[0].length, currentPlayer)
+        let buttonRows = makeButtonRows(board[0].length, currentPlayer, gameEmoji)
 
         await interaction.reply(
             {
-                content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board, gameEmoji),
                 components: buttonRows
             });
 
@@ -204,7 +230,7 @@ module.exports = {
         let intervalID = setInterval(async function() {
                 turnTimeRemaining--;
                 await interaction.editReply({
-                    content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                    content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board, gameEmoji),
                     components: buttonRows
                 });
             }, 1000);
@@ -228,17 +254,17 @@ module.exports = {
                 } else {
                     currentPlayer = switchPlayer(currentPlayer);
                     turnTimeRemaining = turnTimeoutSeconds - 1;
-                    buttonRows = makeButtonRows(board[0].length, currentPlayer);
+                    buttonRows = makeButtonRows(board[0].length, currentPlayer, gameEmoji);
 
                     // Immediately respond with updated game board, then start to update timer every second
                     await i.editReply({
-                        content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                        content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board, gameEmoji),
                         components: buttonRows
                     });
                     intervalID = setInterval(async function() {
                         turnTimeRemaining--;
                         await i.editReply({
-                            content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board),
+                            content: baseContent + `Time Remaining: ${convertSecondsToTimeString(turnTimeRemaining)}\n` + convertBoard(board, gameEmoji),
                             components: buttonRows
                         });
                     }, 1000);
@@ -262,7 +288,7 @@ module.exports = {
             }
 
             await interaction.editReply({
-                content: baseContent + convertBoard(board) + `\n${reason}`,
+                content: baseContent + convertBoard(board, gameEmoji) + `\n${reason}`,
                 components: []
             });
         });
