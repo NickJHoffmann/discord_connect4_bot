@@ -14,7 +14,7 @@ function convertBoard(board, emoji) {
         for (let j = 0; j < board[i].length; j++) {
             res += emoji[board[i][j]] + ' ';
         }
-        res += '\n';
+        res = res.trim() + '\n';
     }
     return res;
 }
