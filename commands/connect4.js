@@ -144,7 +144,22 @@ module.exports = {
                 .setDescription('Emoji for Player 2. Defaults to 🟨'))
         .addStringOption(option =>
             option.setName('background')
-                .setDescription('Emoji for unused tiles. Defaults to ⬜')),
+                .setDescription('Emoji for unused tiles. Defaults to ⬜'))
+        .addIntegerOption(option =>
+            option.setName('width')
+                .setDescription('Width of the board. Minimum: 4, Maximum: 13. Defaults to 7')
+                .setMinValue(4)
+                .setMaxValue(13))
+        .addIntegerOption(option =>
+            option.setName('height')
+                .setDescription('Height of the board. Minimum: 4, Maximum: 13. Defaults to 6')
+                .setMinValue(4)
+                .setMaxValue(13))
+        .addIntegerOption(option =>
+            option.setName('connect')
+                .setDescription('Number of tiles in a row required to win. Minimum: 3, Maximum: 25. Defaults to 4')
+                .setMinValue(3)
+                .setMaxValue(25)),
 
     async execute(interaction) {
         const players = {
@@ -186,18 +201,32 @@ module.exports = {
             gameEmoji[2] = interaction.options.getString('emoji2');
         }
 
+        const boardWidth = (() => {
+            if (interaction.options.getInteger('width')) {
+                return interaction.options.getInteger('width')
+            } else {
+                return 7;
+            }
+        })();
+
+
+        const boardHeight = (() => {
+            if (interaction.options.getInteger('height')) {
+                return interaction.options.getInteger('height')
+            } else {
+                return 6;
+            }
+        })();
+
+
         const matchTimeoutSeconds = 600;
         const turnTimeoutSeconds = 60;
         let turnTimeRemaining = turnTimeoutSeconds - 1;
 
-        const board = [
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0]
-        ];
+        const board = Array(boardHeight);
+        for (let i = 0; i < boardHeight; i++) {
+            board[i] = Array(boardWidth).fill(0);
+        }
 
         // Randomly select which player to start
         let currentPlayer = Math.floor(Math.random() * 2) + 1;
